@@ -32,6 +32,7 @@ class McpServer
             'plesk_scan_maillog'   => ['class' => 'LogTools',      'method' => 'scanMaillog'],
             'plesk_scan_malware'   => ['class' => 'LogTools',      'method' => 'scanMalware'],
             'plesk_read_file'      => ['class' => 'FileTools',     'method' => 'readFile'],
+            'plesk_list_dir'       => ['class' => 'FileTools',     'method' => 'listDir'],
         ];
     }
 
@@ -251,6 +252,18 @@ class McpServer
                     'properties' => [
                         'path'      => ['type' => 'string',  'description' => 'Ruta absoluta del archivo a leer'],
                         'max_bytes' => ['type' => 'integer', 'description' => 'Máximo de bytes a leer (default 100000)'],
+                    ],
+                    'required' => ['path'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_list_dir',
+                'description' => 'Lista archivos y subdirectorios de una ruta del servidor (rutas permitidas: /var/www/vhosts/, /var/log/, /usr/local/psa/var/log/, /etc/postfix/)',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'path'    => ['type' => 'string', 'description' => 'Ruta absoluta del directorio a listar'],
+                        'pattern' => ['type' => 'string', 'description' => 'Filtro glob, ej. *.log (default: *)'],
                     ],
                     'required' => ['path'],
                 ],
