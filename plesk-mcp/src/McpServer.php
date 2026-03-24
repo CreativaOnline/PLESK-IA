@@ -29,6 +29,8 @@ class McpServer
             'plesk_server_stats'   => ['class' => 'ServerTools',   'method' => 'serverStats'],
             'plesk_list_ip_addresses' => ['class' => 'ServerTools','method' => 'listIpAddresses'],
             'plesk_execute_cli'    => ['class' => 'CliTools',      'method' => 'executeCli'],
+            'plesk_scan_maillog'   => ['class' => 'LogTools',      'method' => 'scanMaillog'],
+            'plesk_scan_malware'   => ['class' => 'LogTools',      'method' => 'scanMalware'],
         ];
     }
 
@@ -214,6 +216,30 @@ class McpServer
                         'command' => ['type' => 'string', 'description' => 'Comando Plesk CLI a ejecutar'],
                     ],
                     'required' => ['command'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_scan_maillog',
+                'description' => 'Analiza el maillog buscando spam, rebotes y patrones sospechosos',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'lines'  => ['type' => 'integer', 'description' => 'Líneas a analizar (default 500)'],
+                        'filter' => ['type' => 'string',  'description' => 'Filtrar por dominio o texto (opcional)'],
+                    ],
+                    'required' => [],
+                ],
+            ],
+            [
+                'name'        => 'plesk_scan_malware',
+                'description' => 'Escanea archivos PHP de un dominio buscando malware, webshells y código ofuscado',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'domain'    => ['type' => 'string',  'description' => 'Dominio a escanear (vacío = todo el servidor)'],
+                        'max_files' => ['type' => 'integer', 'description' => 'Máximo de archivos a escanear (default 5000)'],
+                    ],
+                    'required' => [],
                 ],
             ],
         ];
