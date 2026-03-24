@@ -3,13 +3,15 @@
 class PleskClient
 {
     private string $baseUrl;
-    private string $apiKey;
+    private string $user;
+    private string $password;
     private bool $sslVerify;
 
     public function __construct(array $config)
     {
         $this->baseUrl   = rtrim($config['plesk_url'] ?? '', '/');
-        $this->apiKey    = $config['plesk_api_key'] ?? '';
+        $this->user      = $config['plesk_user'] ?? '';
+        $this->password  = $config['plesk_password'] ?? '';
         $this->sslVerify = $config['ssl_verify'] ?? false;
     }
 
@@ -50,8 +52,9 @@ class PleskClient
             CURLOPT_SSL_VERIFYPEER => $this->sslVerify,
             CURLOPT_SSL_VERIFYHOST => $this->sslVerify ? 2 : 0,
             CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_USERPWD        => $this->user . ':' . $this->password,
+            CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
             CURLOPT_HTTPHEADER     => [
-                'X-API-Key: ' . $this->apiKey,
                 'Content-Type: application/json',
                 'Accept: application/json',
             ],
