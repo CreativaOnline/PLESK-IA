@@ -1,0 +1,10 @@
+Options -Indexes
+
+# Proteger config.php
+<Files "config.php">
+    Require all denied
+</Files>
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ index.php [QSA,L]
