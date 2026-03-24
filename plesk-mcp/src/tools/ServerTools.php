@@ -23,57 +23,56 @@ class ServerTools
         $stats = ['source' => 'system', 'cpu_load' => [], 'memory' => [], 'disk' => []];
 
         // CPU load from /proc/loadavg
-        $loadavg = @file_get_contents('/proc/loadavg');
-        if ($loadavg !== false && $loadavg !== '') {
-            $parts = explode(' ', trim($loadavg));
-            if (count($parts) >= 3) {
+        if (is_readable('/proc/loadavg')) {
+            $loadavg = file_get_contents('/proc/loadavg');
+            if ($loadavg !== false) {
+                $parts = explode(' ', $loadavg);
                 $stats['cpu_load'] = [
-                    'load_1min'  => (float) $parts[0],
-                    'load_5min'  => (float) $parts[1],
-                    'load_15min' => (float) $parts[2],
+                    '1min'  => (float) $parts[0],
+                    '5min'  => (float) $parts[1],
+                    '15min' => (float) $parts[2],
                 ];
             }
         }
 
         // Memory from /proc/meminfo
-        $meminfo = @file_get_contents('/proc/meminfo');
-        if ($meminfo !== false && $meminfo !== '') {
-            $mem = [];
-            $matches = [];
-            preg_match_all('/^(MemTotal|MemFree|MemAvailable):\s+(\d+)\s+kB/m', $meminfo, $matches, PREG_SET_ORDER);
-            foreach ($matches as $match) {
-                $key   = $match[1];
-                $valKb = (int) $match[2];
-                $valMb = round($valKb / 1024, 1);
-                if ($key === 'MemTotal') {
-                    $mem['total_kb'] = $valKb;
-                    $mem['total_mb'] = $valMb;
-                } elseif ($key === 'MemFree') {
-                    $mem['free_kb'] = $valKb;
-                    $mem['free_mb'] = $valMb;
-                } elseif ($key === 'MemAvailable') {
-                    $mem['available_kb'] = $valKb;
-                    $mem['available_mb'] = $valMb;
+        if (is_readable('/proc/meminfo')) {
+            $meminfo = file_get_contents('/proc/meminfo');
+            if ($meminfo !== false) {
+                $parsed = [];
+                preg_match_all('/^(\w+):\s+(\d+)/m', $meminfo, $matches, PREG_SET_ORDER);
+                foreach ($matches as $match) {
+                    $parsed[$match[1]] = (int) $match[2];
+                }
+                $totalKb     = $parsed['MemTotal'] ?? 0;
+                $freeKb      = $parsed['MemFree'] ?? 0;
+                $availableKb = $parsed['MemAvailable'] ?? $freeKb;
+                if ($totalKb > 0) {
+                    $totalMb = (int) round($totalKb / 1024);
+                    $freeMb  = (int) round($availableKb / 1024);
+                    $usedMb  = $totalMb - $freeMb;
+                    $stats['memory'] = [
+                        'total_mb'     => $totalMb,
+                        'used_mb'      => $usedMb,
+                        'free_mb'      => $freeMb,
+                        'percent_used' => round($usedMb / $totalMb * 100, 1),
+                    ];
                 }
             }
-            if (isset($mem['total_kb']) && $mem['total_kb'] > 0) {
-                $used = $mem['total_kb'] - ($mem['available_kb'] ?? $mem['free_kb'] ?? 0);
-                $mem['used_mb']      = round($used / 1024, 1);
-                $mem['used_percent'] = round($used / $mem['total_kb'] * 100, 1);
-            }
-            $stats['memory'] = $mem;
         }
 
         // Disk usage
         $totalDisk = @disk_total_space('/');
         $freeDisk  = @disk_free_space('/');
         if ($totalDisk !== false && $freeDisk !== false && $totalDisk > 0) {
-            $usedDisk = $totalDisk - $freeDisk;
+            $totalGb = round($totalDisk / 1073741824, 2);
+            $freeGb  = round($freeDisk / 1073741824, 2);
+            $usedGb  = round(($totalDisk - $freeDisk) / 1073741824, 2);
             $stats['disk'] = [
-                'total_gb'     => round($totalDisk / 1024 / 1024 / 1024, 2),
-                'free_gb'      => round($freeDisk / 1024 / 1024 / 1024, 2),
-                'used_gb'      => round($usedDisk / 1024 / 1024 / 1024, 2),
-                'used_percent' => round($usedDisk / $totalDisk * 100, 1),
+                'total_gb'     => $totalGb,
+                'used_gb'      => $usedGb,
+                'free_gb'      => $freeGb,
+                'percent_used' => round($usedGb / $totalGb * 100, 1),
             ];
         }
 

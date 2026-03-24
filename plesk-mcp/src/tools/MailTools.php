@@ -4,7 +4,7 @@ class MailTools
 {
     public static function mailQueue(PleskClient $client, array $args = []): array
     {
-        // Strategy 1: API REST
+        // Strategy 1: API REST v2
         $result = $client->get('/api/v2/mail/messages');
         if ($result['ok']) {
             return [
@@ -19,7 +19,13 @@ class MailTools
             ];
         }
 
-        // Strategy 2: Count files in postfix spool directories
+        // Strategy 2: Plesk XML-RPC API
+        $xmlResult = self::getQueueViaXmlApi($client);
+        if ($xmlResult !== null) {
+            return $xmlResult;
+        }
+
+        // Strategy 3: Count files in postfix spool directories
         $spoolDirs = [
             'deferred' => '/var/spool/postfix/deferred',
             'active'   => '/var/spool/postfix/active',
@@ -69,39 +75,47 @@ class MailTools
             ];
         }
 
-        // Strategy 3: Execute mailq binary
-        $mailqPaths = ['/usr/sbin/mailq', '/usr/bin/mailq', '/usr/local/sbin/mailq'];
-        foreach ($mailqPaths as $mailqPath) {
-            if (is_executable($mailqPath)) {
-                $output   = [];
-                $exitCode = 0;
-                exec($mailqPath . ' 2>&1', $output, $exitCode);
-                $outputStr = implode("\n", $output);
+        // Strategy 4: Execute mailq/postqueue via proc_open
+        $binaries = [
+            '/usr/sbin/mailq'          => ['mailq'],
+            '/usr/bin/mailq'           => ['mailq'],
+            '/usr/local/sbin/mailq'    => ['mailq'],
+            '/usr/sbin/postqueue'      => ['postqueue', '-p'],
+            '/usr/local/psa/bin/postfix' => ['postqueue', '-p'],
+        ];
 
-                $msgCount = 0;
-                if (preg_match('/(\d+)\s+Request/', $outputStr, $m)) {
-                    $msgCount = (int) $m[1];
-                } elseif (stripos($outputStr, 'Mail queue is empty') !== false) {
-                    $msgCount = 0;
-                }
-
-                return [
-                    'success' => true,
-                    'data'    => [
-                        'source'       => 'mailq',
-                        'total'        => $msgCount,
-                        'queues'       => null,
-                        'mailq_output' => $outputStr,
-                    ],
-                    'message' => '',
-                ];
+        foreach ($binaries as $binPath => $cmdParts) {
+            if (!is_executable($binPath)) {
+                continue;
             }
+            $outputStr = self::runViaProcOpen($binPath, array_slice($cmdParts, 1));
+            if ($outputStr === null) {
+                continue;
+            }
+
+            $msgCount = 0;
+            if (preg_match('/(\d+)\s+Request/', $outputStr, $m)) {
+                $msgCount = (int) $m[1];
+            } elseif (stripos($outputStr, 'Mail queue is empty') !== false) {
+                $msgCount = 0;
+            }
+
+            return [
+                'success' => true,
+                'data'    => [
+                    'source'       => 'proc_open',
+                    'total'        => $msgCount,
+                    'queues'       => null,
+                    'mailq_output' => $outputStr,
+                ],
+                'message' => '',
+            ];
         }
 
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'No se pudo obtener la cola de correo. API REST, spool de postfix y mailq no disponibles.',
+            'message' => 'No se pudo obtener la cola de correo. API REST, XML-RPC, spool de postfix y mailq/postqueue no disponibles.',
         ];
     }
 
@@ -168,5 +182,109 @@ class MailTools
             'data'    => null,
             'message' => 'No se pudo limpiar la cola. postsuper no disponible y Plesk CLI retornó: ' . $result['error'],
         ];
+    }
+
+    private static function getQueueViaXmlApi(PleskClient $client): ?array
+    {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+            . '<packet>'
+            . '<server>'
+            . '<get_mail_stat/>'
+            . '</server>'
+            . '</packet>';
+
+        $result = $client->postXml('/enterprise/control/agent.php', $xml);
+        if (!$result['ok'] || empty($result['data'])) {
+            return null;
+        }
+
+        $prev = libxml_use_internal_errors(true);
+        $doc = simplexml_load_string($result['data']);
+        libxml_use_internal_errors($prev);
+
+        if ($doc === false) {
+            return null;
+        }
+
+        // Check for <status>ok</status> inside <server><get_mail_stat><result>
+        $resultNode = $doc->server->get_mail_stat->result ?? null;
+        if ($resultNode === null) {
+            return null;
+        }
+
+        $status = (string) ($resultNode->status ?? '');
+        if ($status !== 'ok') {
+            return null;
+        }
+
+        $mailStat = [];
+        $total = 0;
+
+        if (isset($resultNode->in_queue)) {
+            $mailStat['in_queue'] = (int) (string) $resultNode->in_queue;
+            $total = $mailStat['in_queue'];
+        }
+        if (isset($resultNode->total_sent)) {
+            $mailStat['total_sent'] = (int) (string) $resultNode->total_sent;
+        }
+        if (isset($resultNode->total_received)) {
+            $mailStat['total_received'] = (int) (string) $resultNode->total_received;
+        }
+
+        // If no specific fields found, collect all child elements
+        if (empty($mailStat)) {
+            foreach ($resultNode->children() as $child) {
+                $name = $child->getName();
+                if ($name !== 'status') {
+                    $mailStat[$name] = (string) $child;
+                }
+            }
+        }
+
+        return [
+            'success' => true,
+            'data'    => [
+                'source'       => 'xml_api',
+                'total'        => $total,
+                'queues'       => $mailStat,
+                'mailq_output' => null,
+            ],
+            'message' => '',
+        ];
+    }
+
+    private static function runViaProcOpen(string $binary, array $extraArgs = []): ?string
+    {
+        $cmd = escapeshellarg($binary);
+        foreach ($extraArgs as $arg) {
+            $cmd .= ' ' . escapeshellarg($arg);
+        }
+
+        $descriptors = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+
+        $process = proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            return null;
+        }
+
+        fclose($pipes[0]);
+
+        $stdout = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+
+        $stderr = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+
+        $exitCode = proc_close($process);
+
+        if ($exitCode !== 0 && $stdout === '' && $stderr === '') {
+            return null;
+        }
+
+        return ($stdout !== '' ? $stdout : $stderr);
     }
 }

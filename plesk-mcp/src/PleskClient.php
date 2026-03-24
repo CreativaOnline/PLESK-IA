@@ -40,6 +40,43 @@ class PleskClient
         return $this->post('/api/v2/cli/plesk/call', ['params' => $params]);
     }
 
+    public function postXml(string $path, string $xmlBody): array
+    {
+        $url = $this->baseUrl . $path;
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 20,
+            CURLOPT_SSL_VERIFYPEER => $this->sslVerify,
+            CURLOPT_SSL_VERIFYHOST => $this->sslVerify ? 2 : 0,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $xmlBody,
+            CURLOPT_USERPWD        => $this->user . ':' . $this->password,
+            CURLOPT_HTTPAUTH       => CURLAUTH_BASIC,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: text/xml',
+                'Accept: text/xml',
+            ],
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error    = curl_error($ch);
+        curl_close($ch);
+
+        if ($error !== '') {
+            return ['ok' => false, 'data' => null, 'error' => 'cURL error: ' . $error];
+        }
+
+        if ($httpCode >= 400) {
+            return ['ok' => false, 'data' => (string) $response, 'error' => 'HTTP ' . $httpCode . ': ' . substr((string) $response, 0, 500)];
+        }
+
+        return ['ok' => true, 'data' => (string) $response, 'error' => ''];
+    }
+
     private function request(string $method, string $path, ?array $body = null): array
     {
         $url = $this->baseUrl . $path;
