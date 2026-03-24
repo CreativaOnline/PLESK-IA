@@ -253,7 +253,7 @@ curl -X POST https://plesk.tudominio.com/ \
 
 ## Creditos
 
-Desarrollado por **Jordi Torres** - [Web & Web Soluciones](https://websoluciones.es)
+Desarrollado por **Jordi Torres**
 
 ## Licencia
 
