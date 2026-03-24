@@ -19,33 +19,19 @@ class ServerTools
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // Strategy 2: Helper unificado via sudo
-        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
-        $phpBin     = '/opt/plesk/php/8.2/bin/php';
-        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' ' . escapeshellarg($helperPath);
-        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-        $process = @proc_open($cmd, $descriptors, $pipes);
-        if (is_resource($process)) {
-            fclose($pipes[0]);
-            $output   = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            $exitCode = proc_close($process);
-            if ($exitCode === 0 && $output !== '') {
-                $data = json_decode($output, true);
-                if (is_array($data) && !empty($data['system']['cpu_load'])) {
-                    return [
-                        'success' => true,
-                        'data'    => [
-                            'source'   => 'helper',
-                            'cpu_load' => $data['system']['cpu_load'],
-                            'memory'   => $data['system']['memory'],
-                            'disk'     => $data['system']['disk'],
-                        ],
-                        'message' => '',
-                    ];
-                }
-            }
+        // Strategy 2: helper unificado via sudo
+        $data = self::runHelper();
+        if ($data !== null && !empty($data['system']['cpu_load'])) {
+            return [
+                'success' => true,
+                'data'    => [
+                    'source'   => 'helper',
+                    'cpu_load' => $data['system']['cpu_load'],
+                    'memory'   => $data['system']['memory'],
+                    'disk'     => $data['system']['disk'],
+                ],
+                'message' => '',
+            ];
         }
 
         // Strategy 3: Read system metrics directly
@@ -107,6 +93,25 @@ class ServerTools
             ],
             'message' => '',
         ];
+    }
+
+    private static function runHelper(): ?array
+    {
+        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        $phpBin     = '/opt/plesk/php/8.2/bin/php';
+        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
+                    . escapeshellarg($helperPath);
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) return null;
+        fclose($pipes[0]);
+        $output   = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+        if ($exitCode !== 0 || $output === '') return null;
+        $data = json_decode($output, true);
+        return is_array($data) ? $data : null;
     }
 
     public static function listIpAddresses(PleskClient $client, array $args = []): array

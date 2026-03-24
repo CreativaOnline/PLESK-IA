@@ -113,32 +113,18 @@ class MailTools
         }
 
         // Strategy 5: Helper unificado via sudo
-        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
-        $phpBin     = '/opt/plesk/php/8.2/bin/php';
-        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' ' . escapeshellarg($helperPath);
-        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-        $process = @proc_open($cmd, $descriptors, $pipes);
-        if (is_resource($process)) {
-            fclose($pipes[0]);
-            $output   = stream_get_contents($pipes[1]);
-            fclose($pipes[1]);
-            fclose($pipes[2]);
-            $exitCode = proc_close($process);
-            if ($exitCode === 0 && $output !== '') {
-                $data = json_decode($output, true);
-                if (is_array($data) && isset($data['mail'])) {
-                    return [
-                        'success' => true,
-                        'data'    => [
-                            'source'       => 'helper',
-                            'total'        => $data['mail']['total'] ?? 0,
-                            'queues'       => $data['mail']['queues'] ?? [],
-                            'mailq_output' => $data['mail']['mailq_output'] ?? '',
-                        ],
-                        'message' => '',
-                    ];
-                }
-            }
+        $data = self::runHelper();
+        if ($data !== null && isset($data['mail'])) {
+            return [
+                'success' => true,
+                'data'    => [
+                    'source'       => 'helper',
+                    'total'        => $data['mail']['total']        ?? 0,
+                    'queues'       => $data['mail']['queues']       ?? [],
+                    'mailq_output' => $data['mail']['mailq_output'] ?? '',
+                ],
+                'message' => '',
+            ];
         }
 
         return [
@@ -200,7 +186,38 @@ class MailTools
             ];
         }
 
-        // Strategy 2: Plesk CLI fallback
+        // Strategy 2: postsuper via helper sudo
+        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        $phpBin     = '/opt/plesk/php/8.2/bin/php';
+        $postsuper  = '/usr/sbin/postsuper';
+        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' -r '
+                    . escapeshellarg(
+                        'exec(' . var_export($postsuper . ' -d ALL 2>&1', true)
+                        . ', $o, $c); echo json_encode(["output"=>implode("\n",$o),"exit"=>$c]);'
+                      );
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            $output   = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exitCode = proc_close($process);
+            if ($exitCode === 0 && $output !== '') {
+                $result = json_decode($output, true);
+                if (is_array($result)) {
+                    return [
+                        'success' => $result['exit'] === 0,
+                        'data'    => ['output' => $result['output']],
+                        'message' => $result['exit'] === 0
+                            ? 'Cola limpiada correctamente.'
+                            : 'Error al limpiar la cola.',
+                    ];
+                }
+            }
+        }
+
+        // Strategy 3: Plesk CLI fallback
         $result = $client->cli(['repair', '--mail']);
         if ($result['ok']) {
             return ['success' => true, 'data' => ['source' => 'plesk_cli', 'output' => $result['data']], 'message' => ''];
@@ -211,6 +228,25 @@ class MailTools
             'data'    => null,
             'message' => 'No se pudo limpiar la cola. postsuper no disponible y Plesk CLI retornó: ' . $result['error'],
         ];
+    }
+
+    private static function runHelper(): ?array
+    {
+        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        $phpBin     = '/opt/plesk/php/8.2/bin/php';
+        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
+                    . escapeshellarg($helperPath);
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) return null;
+        fclose($pipes[0]);
+        $output   = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+        if ($exitCode !== 0 || $output === '') return null;
+        $data = json_decode($output, true);
+        return is_array($data) ? $data : null;
     }
 
     private static function getQueueViaXmlApi(PleskClient $client): ?array
