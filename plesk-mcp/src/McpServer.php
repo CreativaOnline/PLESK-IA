@@ -31,6 +31,7 @@ class McpServer
             'plesk_execute_cli'    => ['class' => 'CliTools',      'method' => 'executeCli'],
             'plesk_scan_maillog'   => ['class' => 'LogTools',      'method' => 'scanMaillog'],
             'plesk_scan_malware'   => ['class' => 'LogTools',      'method' => 'scanMalware'],
+            'plesk_read_file'      => ['class' => 'FileTools',     'method' => 'readFile'],
         ];
     }
 
@@ -240,6 +241,18 @@ class McpServer
                         'max_files' => ['type' => 'integer', 'description' => 'Máximo de archivos a escanear (default 5000)'],
                     ],
                     'required' => [],
+                ],
+            ],
+            [
+                'name'        => 'plesk_read_file',
+                'description' => 'Lee el contenido de un archivo del servidor (rutas permitidas: /var/www/vhosts/, /var/log/, /usr/local/psa/var/log/, /etc/postfix/)',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'path'      => ['type' => 'string',  'description' => 'Ruta absoluta del archivo a leer'],
+                        'max_bytes' => ['type' => 'integer', 'description' => 'Máximo de bytes a leer (default 100000)'],
+                    ],
+                    'required' => ['path'],
                 ],
             ],
         ];
