@@ -112,29 +112,28 @@ class MailTools
             ];
         }
 
-        // Strategy 5: Script auxiliar con sudo
-        $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
-        $phpBin     = PHP_BINARY ?: '/usr/bin/php';
+        // Strategy 5: Helper unificado via sudo
+        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' ' . escapeshellarg($helperPath);
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $process = @proc_open($cmd, $descriptors, $pipes);
         if (is_resource($process)) {
             fclose($pipes[0]);
             $output   = stream_get_contents($pipes[1]);
-            $errout   = stream_get_contents($pipes[2]);
             fclose($pipes[1]);
             fclose($pipes[2]);
             $exitCode = proc_close($process);
             if ($exitCode === 0 && $output !== '') {
                 $data = json_decode($output, true);
-                if (is_array($data)) {
+                if (is_array($data) && isset($data['mail'])) {
                     return [
                         'success' => true,
                         'data'    => [
-                            'source'       => 'helper_script',
-                            'total'        => $data['total'] ?? 0,
-                            'queues'       => $data['queues'] ?? [],
-                            'mailq_output' => $data['mailq_output'] ?? '',
+                            'source'       => 'helper',
+                            'total'        => $data['mail']['total'] ?? 0,
+                            'queues'       => $data['mail']['queues'] ?? [],
+                            'mailq_output' => $data['mail']['mailq_output'] ?? '',
                         ],
                         'message' => '',
                     ];
