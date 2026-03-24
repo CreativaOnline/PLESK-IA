@@ -20,63 +20,64 @@ class ServerTools
         }
 
         // Strategy 2: Read system metrics directly
-        $stats = ['source' => 'system', 'cpu_load' => [], 'memory' => [], 'disk' => []];
 
-        // CPU load from /proc/loadavg
-        if (is_readable('/proc/loadavg')) {
-            $loadavg = file_get_contents('/proc/loadavg');
-            if ($loadavg !== false) {
-                $parts = explode(' ', $loadavg);
-                $stats['cpu_load'] = [
-                    '1min'  => (float) $parts[0],
-                    '5min'  => (float) $parts[1],
-                    '15min' => (float) $parts[2],
-                ];
-            }
-        }
-
-        // Memory from /proc/meminfo
-        if (is_readable('/proc/meminfo')) {
-            $meminfo = file_get_contents('/proc/meminfo');
-            if ($meminfo !== false) {
-                $parsed = [];
-                preg_match_all('/^(\w+):\s+(\d+)/m', $meminfo, $matches, PREG_SET_ORDER);
-                foreach ($matches as $match) {
-                    $parsed[$match[1]] = (int) $match[2];
-                }
-                $totalKb     = $parsed['MemTotal'] ?? 0;
-                $freeKb      = $parsed['MemFree'] ?? 0;
-                $availableKb = $parsed['MemAvailable'] ?? $freeKb;
-                if ($totalKb > 0) {
-                    $totalMb = (int) round($totalKb / 1024);
-                    $freeMb  = (int) round($availableKb / 1024);
-                    $usedMb  = $totalMb - $freeMb;
-                    $stats['memory'] = [
-                        'total_mb'     => $totalMb,
-                        'used_mb'      => $usedMb,
-                        'free_mb'      => $freeMb,
-                        'percent_used' => round($usedMb / $totalMb * 100, 1),
-                    ];
-                }
-            }
-        }
-
-        // Disk usage
-        $totalDisk = @disk_total_space('/');
-        $freeDisk  = @disk_free_space('/');
-        if ($totalDisk !== false && $freeDisk !== false && $totalDisk > 0) {
-            $totalGb = round($totalDisk / 1073741824, 2);
-            $freeGb  = round($freeDisk / 1073741824, 2);
-            $usedGb  = round(($totalDisk - $freeDisk) / 1073741824, 2);
-            $stats['disk'] = [
-                'total_gb'     => $totalGb,
-                'used_gb'      => $usedGb,
-                'free_gb'      => $freeGb,
-                'percent_used' => round($usedGb / $totalGb * 100, 1),
+        // CPU
+        $loadavg = @file_get_contents('/proc/loadavg');
+        if ($loadavg !== false) {
+            $parts = explode(' ', trim($loadavg));
+            $cpu = [
+                '1min'  => (float) ($parts[0] ?? 0),
+                '5min'  => (float) ($parts[1] ?? 0),
+                '15min' => (float) ($parts[2] ?? 0),
             ];
+        } else {
+            $cpu = [];
         }
 
-        return ['success' => true, 'data' => $stats, 'message' => ''];
+        // RAM
+        $meminfo = @file_get_contents('/proc/meminfo');
+        if ($meminfo !== false) {
+            preg_match('/MemTotal:\s+(\d+)/i',     $meminfo, $mTotal);
+            preg_match('/MemFree:\s+(\d+)/i',      $meminfo, $mFree);
+            preg_match('/MemAvailable:\s+(\d+)/i', $meminfo, $mAvail);
+            $total = (int) ($mTotal[1] ?? 0);
+            $avail = (int) ($mAvail[1] ?? 0);
+            $used  = $total - $avail;
+            $memory = [
+                'total_mb'     => (int) round($total / 1024),
+                'used_mb'      => (int) round($used  / 1024),
+                'free_mb'      => (int) round($avail / 1024),
+                'percent_used' => $total > 0 ? round($used / $total * 100, 1) : 0,
+            ];
+        } else {
+            $memory = [];
+        }
+
+        // Disco
+        $total = @disk_total_space('/');
+        $free  = @disk_free_space('/');
+        if ($total !== false && $free !== false) {
+            $used = $total - $free;
+            $disk = [
+                'total_gb'     => round($total / 1073741824, 2),
+                'used_gb'      => round($used  / 1073741824, 2),
+                'free_gb'      => round($free  / 1073741824, 2),
+                'percent_used' => round($used  / $total * 100, 1),
+            ];
+        } else {
+            $disk = [];
+        }
+
+        return [
+            'success' => true,
+            'data'    => [
+                'source'   => 'system',
+                'cpu_load' => $cpu,
+                'memory'   => $memory,
+                'disk'     => $disk,
+            ],
+            'message' => '',
+        ];
     }
 
     public static function listIpAddresses(PleskClient $client, array $args = []): array
