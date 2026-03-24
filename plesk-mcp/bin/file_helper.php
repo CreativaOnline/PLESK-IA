@@ -1,11 +1,4 @@
 <?php
-/**
- * File Helper — ejecutado via sudo desde FileTools::readFile()
- * Uso: sudo php file_helper.php <path> [max_bytes]
- *
- * Valida whitelist, resuelve realpath, lee contenido.
- * Devuelve JSON por stdout.
- */
 
 $path     = $argv[1] ?? '';
 $maxBytes = (int)($argv[2] ?? 100000);

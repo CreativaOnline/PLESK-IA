@@ -2,7 +2,6 @@
 
 class FileTools
 {
-    // Whitelist documentada — la validación real la hace el helper con sudo
     private static array $allowedPrefixes = [
         '/var/www/vhosts/',
         '/var/log/',
@@ -55,7 +54,6 @@ class FileTools
                     'message' => 'Respuesta JSON inválida del helper de file.'];
         }
 
-        // El helper devuelve {"error":"..."} con exit(1) en caso de error
         if (isset($data['error'])) {
             return ['success' => false, 'data' => null,
                     'message' => $data['error']];
@@ -109,7 +107,6 @@ class FileTools
                     'message' => 'Respuesta JSON inválida del helper de listdir.'];
         }
 
-        // El helper devuelve {"error":"..."} con exit(1) en caso de error
         if (isset($data['error'])) {
             return ['success' => false, 'data' => null,
                     'message' => $data['error']];

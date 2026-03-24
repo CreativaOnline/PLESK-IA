@@ -28,14 +28,12 @@ class CliTools
             ];
         }
 
-        // Try Plesk CLI first
         $params = explode(' ', $command);
         $result = $client->cli($params);
         if ($result['ok']) {
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // CLI failed (likely 404), use fallback per command
         return self::fallback($client, $command, $args);
     }
 
@@ -96,7 +94,6 @@ class CliTools
 
     private static function fallbackSubscriptionInfo(PleskClient $client, array $args): array
     {
-        // Extract domain name from additional args if provided (e.g., "subscription --info domain.com")
         $parts = explode(' ', trim($args['command'] ?? ''));
         $domainName = $parts[2] ?? '';
 
@@ -107,7 +104,6 @@ class CliTools
             }
         }
 
-        // Without a specific domain, list all
         $result2 = $client->get('/api/v2/domains');
         if ($result2['ok']) {
             return ['success' => true, 'data' => $result2['data'], 'message' => ''];
@@ -141,7 +137,6 @@ class CliTools
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // Fallback to system stats
         return ServerTools::serverStats($client);
     }
 

@@ -4,7 +4,6 @@ class MailTools
 {
     public static function mailQueue(PleskClient $client, array $args = []): array
     {
-        // Strategy 1: API REST v2
         $result = $client->get('/api/v2/mail/messages');
         if ($result['ok']) {
             return [
@@ -19,13 +18,11 @@ class MailTools
             ];
         }
 
-        // Strategy 2: Plesk XML-RPC API
         $xmlResult = self::getQueueViaXmlApi($client);
         if ($xmlResult !== null) {
             return $xmlResult;
         }
 
-        // Strategy 3: Count files in postfix spool directories
         $spoolDirs = [
             'deferred' => '/var/spool/postfix/deferred',
             'active'   => '/var/spool/postfix/active',
@@ -75,12 +72,11 @@ class MailTools
             ];
         }
 
-        // Strategy 4: Execute mailq/postqueue via proc_open
         $binaries = [
-            '/usr/sbin/mailq'          => ['mailq'],
-            '/usr/bin/mailq'           => ['mailq'],
-            '/usr/local/sbin/mailq'    => ['mailq'],
-            '/usr/sbin/postqueue'      => ['postqueue', '-p'],
+            '/usr/sbin/mailq'            => ['mailq'],
+            '/usr/bin/mailq'             => ['mailq'],
+            '/usr/local/sbin/mailq'      => ['mailq'],
+            '/usr/sbin/postqueue'        => ['postqueue', '-p'],
             '/usr/local/psa/bin/postfix' => ['postqueue', '-p'],
         ];
 
@@ -112,7 +108,6 @@ class MailTools
             ];
         }
 
-        // Strategy 5: Helper unificado via sudo
         $data = self::runHelper();
         if ($data !== null && isset($data['mail'])) {
             return [
@@ -171,7 +166,6 @@ class MailTools
             ];
         }
 
-        // Strategy 1: postsuper -d ALL
         $postsuperPath = '/usr/sbin/postsuper';
         if (is_executable($postsuperPath)) {
             $output   = [];
@@ -186,7 +180,6 @@ class MailTools
             ];
         }
 
-        // Strategy 2: postsuper via helper sudo
         $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $postsuper  = '/usr/sbin/postsuper';
@@ -217,7 +210,6 @@ class MailTools
             }
         }
 
-        // Strategy 3: Plesk CLI fallback
         $result = $client->cli(['repair', '--mail']);
         if ($result['ok']) {
             return ['success' => true, 'data' => ['source' => 'plesk_cli', 'output' => $result['data']], 'message' => ''];
@@ -271,7 +263,6 @@ class MailTools
             return null;
         }
 
-        // Check for <status>ok</status> inside <server><get_mail_stat><result>
         $resultNode = $doc->server->get_mail_stat->result ?? null;
         if ($resultNode === null) {
             return null;
@@ -296,7 +287,6 @@ class MailTools
             $mailStat['total_received'] = (int) (string) $resultNode->total_received;
         }
 
-        // If no specific fields found, collect all child elements
         if (empty($mailStat)) {
             foreach ($resultNode->children() as $child) {
                 $name = $child->getName();

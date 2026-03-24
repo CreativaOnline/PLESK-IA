@@ -13,13 +13,11 @@ class ServerTools
 
     public static function serverStats(PleskClient $client, array $args = []): array
     {
-        // Strategy 1: API REST
         $result = $client->get('/api/v2/server/statistics');
         if ($result['ok']) {
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // Strategy 2: helper unificado via sudo
         $data = self::runHelper();
         if ($data !== null && !empty($data['system']['cpu_load'])) {
             return [
@@ -34,9 +32,6 @@ class ServerTools
             ];
         }
 
-        // Strategy 3: Read system metrics directly
-
-        // CPU
         $loadavg = @file_get_contents('/proc/loadavg');
         if ($loadavg !== false) {
             $parts = explode(' ', trim($loadavg));
@@ -49,7 +44,6 @@ class ServerTools
             $cpu = [];
         }
 
-        // RAM
         $meminfo = @file_get_contents('/proc/meminfo');
         if ($meminfo !== false) {
             preg_match('/MemTotal:\s+(\d+)/i',     $meminfo, $mTotal);
@@ -68,7 +62,6 @@ class ServerTools
             $memory = [];
         }
 
-        // Disco
         $total = @disk_total_space('/');
         $free  = @disk_free_space('/');
         if ($total !== false && $free !== false) {

@@ -1,12 +1,4 @@
 <?php
-/**
- * WP-CLI Helper — ejecutado via sudo desde WpCliTools::executeWpCli()
- * Uso: sudo php wpcli_helper.php <domain> <wp_command>
- *
- * Valida dominio, busca wp-cli, valida whitelist de subcomandos.
- * Ejecuta wp-cli con --path y --allow-root.
- * Devuelve JSON por stdout.
- */
 
 $domain  = $argv[1] ?? '';
 $command = $argv[2] ?? '';
@@ -16,8 +8,7 @@ if ($domain === '' || $command === '') {
     exit(1);
 }
 
-// --- 1. Validar dominio y encontrar ruta WordPress ---
-$domain = basename($domain); // evitar path traversal
+$domain = basename($domain);
 
 $pathCandidates = [
     '/var/www/vhosts/' . $domain . '/httpdocs',
@@ -41,7 +32,6 @@ if ($wpPath === '') {
     exit(1);
 }
 
-// --- 2. Encontrar binario wp-cli ---
 $wpCliBin = '';
 $wpCliCandidates = [
     '/usr/local/bin/wp',
@@ -62,77 +52,53 @@ if ($wpCliBin === '') {
     exit(1);
 }
 
-// --- 3. Whitelist de subcomandos permitidos (solo lectura) ---
 $allowedPrefixes = [
-    // Core
     'core version',
     'core check-update',
     'core is-installed',
-    // Plugins
     'plugin list',
     'plugin status',
     'plugin get',
     'plugin verify-checksums',
-    // Temas
     'theme list',
     'theme status',
     'theme get',
-    // Usuarios
     'user list',
     'user count',
     'user get',
-    // Opciones (solo lectura)
     'option get',
     'option list',
-    // Base de datos
     'db size',
     'db tables',
     'db check',
-    // Cron
     'cron event list',
     'cron schedule list',
-    // Config
     'config list',
     'config get',
     'config path',
-    // Cache
     'cache type',
-    // Rewrite
     'rewrite list',
-    // Posts (solo lectura)
     'post list',
     'post get',
-    // Taxonomías
     'term list',
     'taxonomy list',
-    // Comentarios
     'comment list',
     'comment count',
-    // Sidebars / widgets
     'sidebar list',
     'widget list',
-    // Menús
     'menu list',
     'menu item list',
-    // Roles
     'role list',
     'cap list',
-    // Idioma
     'language core list',
     'language plugin list',
     'language theme list',
-    // Multisite
     'site list',
-    // Búsqueda (solo dry-run)
     'search-replace --dry-run',
-    // Evaluación
     'eval-file',
-    // Transients
     'transient list',
     'transient get',
-    // Media
     'media list',
-    // Maintenance
     'maintenance-mode status',
 ];
 
@@ -152,7 +118,6 @@ if (!$commandAllowed) {
     exit(1);
 }
 
-// --- 4. Construir y ejecutar comando ---
 $fullCmd = escapeshellarg($wpCliBin)
          . ' --path=' . escapeshellarg($wpPath)
          . ' --allow-root'

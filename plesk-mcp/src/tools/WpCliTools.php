@@ -52,7 +52,6 @@ class WpCliTools
                     'message' => 'Respuesta JSON inválida del helper de WP-CLI.'];
         }
 
-        // El helper devuelve {"error":"..."} con exit(1) en caso de error
         if (isset($data['error'])) {
             return ['success' => false, 'data' => $data,
                     'message' => $data['error']];

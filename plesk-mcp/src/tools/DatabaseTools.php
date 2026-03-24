@@ -6,7 +6,6 @@ class DatabaseTools
     {
         $domain = $args['domain'] ?? '';
 
-        // Strategy 1: REST API
         $path = '/api/v2/databases';
         if ($domain !== '') {
             $path .= '?domain=' . urlencode($domain);
@@ -16,7 +15,6 @@ class DatabaseTools
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // Strategy 2: XML-RPC API
         $filter = '';
         if ($domain !== '') {
             $filter = '<domain-name>' . htmlspecialchars($domain, ENT_XML1, 'UTF-8') . '</domain-name>';
@@ -38,7 +36,6 @@ class DatabaseTools
             }
         }
 
-        // Strategy 3: descriptive error
         return [
             'success' => false,
             'data'    => null,
@@ -50,13 +47,11 @@ class DatabaseTools
 
     public static function listDbServers(PleskClient $client, array $args = []): array
     {
-        // Strategy 1: REST API
         $result = $client->get('/api/v2/db-servers');
         if ($result['ok']) {
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
 
-        // Strategy 2: XML-RPC API
         $xml = '<?xml version="1.0" encoding="UTF-8"?>'
             . '<packet>'
             . '<db-server>'
@@ -72,7 +67,6 @@ class DatabaseTools
             }
         }
 
-        // Strategy 3: descriptive error
         return [
             'success' => false,
             'data'    => null,
@@ -92,7 +86,6 @@ class DatabaseTools
             return null;
         }
 
-        // Navigate to result nodes: <packet><db><get-db-list><result>...
         $results = $doc->db->{'get-db-list'}->result ?? null;
         if ($results === null) {
             return null;
@@ -100,7 +93,6 @@ class DatabaseTools
 
         $databases = [];
 
-        // Handle single result or multiple
         if (!is_iterable($results)) {
             $results = [$results];
         }
@@ -111,7 +103,6 @@ class DatabaseTools
                 continue;
             }
 
-            // Each result may contain one or more <db> children
             $dbNodes = $resultNode->db ?? $resultNode->children();
             foreach ($dbNodes as $node) {
                 if ($node->getName() === 'status' || $node->getName() === 'filter-id') {
@@ -144,7 +135,6 @@ class DatabaseTools
             return null;
         }
 
-        // Navigate: <packet><db-server><get-list><result>...
         $results = $doc->{'db-server'}->{'get-list'}->result ?? null;
         if ($results === null) {
             return null;

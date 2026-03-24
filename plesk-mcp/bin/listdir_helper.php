@@ -1,11 +1,4 @@
 <?php
-/**
- * Listdir Helper — ejecutado via sudo desde FileTools::listDir()
- * Uso: sudo php listdir_helper.php <path> [pattern]
- *
- * Valida whitelist, resuelve realpath, lista directorio.
- * Devuelve JSON por stdout.
- */
 
 $path    = $argv[1] ?? '';
 $pattern = $argv[2] ?? '*';
@@ -47,11 +40,9 @@ if (!is_readable($realPath)) {
     exit(1);
 }
 
-// Listar con glob (no recursivo)
 $globPath = rtrim($realPath, '/') . '/' . $pattern;
 $matches  = glob($globPath);
 
-// Incluir archivos ocultos si pattern es *
 if ($pattern === '*') {
     $hidden = glob(rtrim($realPath, '/') . '/.*');
     if (is_array($hidden)) {
@@ -98,7 +89,6 @@ foreach ($matches as $item) {
     }
 }
 
-// Ordenar alfabéticamente
 usort($dirs,  fn($a, $b) => strcasecmp($a['name'], $b['name']));
 usort($files, fn($a, $b) => strcasecmp($a['name'], $b['name']));
 

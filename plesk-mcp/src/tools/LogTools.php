@@ -23,7 +23,7 @@ class LogTools
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        $stderr   = stream_get_contents($pipes[2]);   // ← capturar stderr
+        $stderr   = stream_get_contents($pipes[2]);
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
@@ -63,7 +63,7 @@ class LogTools
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
-        $stderr   = stream_get_contents($pipes[2]);   // ← capturar stderr
+        $stderr   = stream_get_contents($pipes[2]);
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
