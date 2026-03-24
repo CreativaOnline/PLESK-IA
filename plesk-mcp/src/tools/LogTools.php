@@ -23,12 +23,14 @@ class LogTools
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);   // ← capturar stderr
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
         if ($exitCode !== 0 || $output === '') {
             return ['success' => false, 'data' => null,
-                    'message' => 'El helper de maillog falló (exit=' . $exitCode . ').'];
+                    'message' => 'El helper de maillog falló (exit=' . $exitCode . ').'
+                               . ($stderr !== '' ? ' stderr: ' . trim($stderr) : '')];
         }
 
         $data = json_decode($output, true);
@@ -61,12 +63,14 @@ class LogTools
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);   // ← capturar stderr
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
         if ($exitCode !== 0 || $output === '') {
             return ['success' => false, 'data' => null,
-                    'message' => 'El helper de malware falló (exit=' . $exitCode . ').'];
+                    'message' => 'El helper de malware falló (exit=' . $exitCode . ').'
+                               . ($stderr !== '' ? ' stderr: ' . trim($stderr) : '')];
         }
 
         $data = json_decode($output, true);
