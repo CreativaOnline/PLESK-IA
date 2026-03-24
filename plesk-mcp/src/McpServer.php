@@ -33,6 +33,7 @@ class McpServer
             'plesk_scan_malware'   => ['class' => 'LogTools',      'method' => 'scanMalware'],
             'plesk_read_file'      => ['class' => 'FileTools',     'method' => 'readFile'],
             'plesk_list_dir'       => ['class' => 'FileTools',     'method' => 'listDir'],
+            'plesk_wpcli'          => ['class' => 'WpCliTools',    'method' => 'executeWpCli'],
         ];
     }
 
@@ -266,6 +267,18 @@ class McpServer
                         'pattern' => ['type' => 'string', 'description' => 'Filtro glob, ej. *.log (default: *)'],
                     ],
                     'required' => ['path'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_wpcli',
+                'description' => 'Ejecuta un comando WP-CLI (solo lectura) en un dominio WordPress del servidor. Comandos permitidos: core version, plugin list, theme list, user list, option get/list, db size/tables, cron event list, config list, post list, comment list/count, media list, search-replace --dry-run, y más',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'domain'  => ['type' => 'string', 'description' => 'Dominio donde está WordPress (ej: ejemplo.com)'],
+                        'command' => ['type' => 'string', 'description' => 'Subcomando WP-CLI a ejecutar (ej: plugin list --format=json)'],
+                    ],
+                    'required' => ['domain', 'command'],
                 ],
             ],
         ];

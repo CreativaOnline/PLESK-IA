@@ -17,6 +17,7 @@ require_once __DIR__ . '/src/tools/ServerTools.php';
 require_once __DIR__ . '/src/tools/CliTools.php';
 require_once __DIR__ . '/src/tools/LogTools.php';
 require_once __DIR__ . '/src/tools/FileTools.php';
+require_once __DIR__ . '/src/tools/WpCliTools.php';
 
 // Headers CORS obligatorios
 header('Content-Type: application/json');
