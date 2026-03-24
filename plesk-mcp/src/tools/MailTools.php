@@ -112,10 +112,40 @@ class MailTools
             ];
         }
 
+        // Strategy 5: Script auxiliar con sudo
+        $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
+        $phpBin     = PHP_BINARY ?: '/usr/bin/php';
+        $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' ' . escapeshellarg($helperPath);
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            $output   = stream_get_contents($pipes[1]);
+            $errout   = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exitCode = proc_close($process);
+            if ($exitCode === 0 && $output !== '') {
+                $data = json_decode($output, true);
+                if (is_array($data)) {
+                    return [
+                        'success' => true,
+                        'data'    => [
+                            'source'       => 'helper_script',
+                            'total'        => $data['total'] ?? 0,
+                            'queues'       => $data['queues'] ?? [],
+                            'mailq_output' => $data['mailq_output'] ?? '',
+                        ],
+                        'message' => '',
+                    ];
+                }
+            }
+        }
+
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'No se pudo obtener la cola de correo. API REST, XML-RPC, spool de postfix y mailq/postqueue no disponibles.',
+            'message' => 'No se pudo obtener la cola de correo. API REST, XML-RPC, spool de postfix, mailq/postqueue y script auxiliar no disponibles.',
         ];
     }
 
