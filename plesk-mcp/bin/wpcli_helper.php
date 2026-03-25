@@ -95,7 +95,9 @@ $allowedPrefixes = [
     'language theme list',
     'site list',
     'search-replace --dry-run',
+    // Evaluación
     'eval-file',
+    'eval',
     'transient list',
     'transient get',
     'media list',
