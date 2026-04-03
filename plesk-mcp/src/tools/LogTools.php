@@ -81,4 +81,59 @@ class LogTools
 
         return ['success' => true, 'data' => $data, 'message' => ''];
     }
+
+    public static function readLog(PleskClient $client, array $args): array
+    {
+        $path    = trim($args['path'] ?? '');
+        $pattern = $args['pattern'] ?? '';
+        $lines   = (int)($args['lines'] ?? 100);
+
+        if ($path === '') {
+            return ['success' => false, 'data' => null,
+                    'message' => 'El parámetro "path" es requerido.'];
+        }
+
+        $phpBin     = '/opt/plesk/php/8.2/bin/php';
+        $helperPath = realpath(__DIR__ . '/../../bin/readlog_helper.php');
+        $pathArg    = escapeshellarg($path);
+        $patternArg = escapeshellarg($pattern);
+        $linesArg   = escapeshellarg((string)$lines);
+
+        $cmd = 'sudo ' . escapeshellarg($phpBin) . ' '
+             . escapeshellarg($helperPath) . ' '
+             . $pathArg . ' ' . $patternArg . ' ' . $linesArg;
+
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            return ['success' => false, 'data' => null,
+                    'message' => 'No se pudo ejecutar el helper de readlog.'];
+        }
+
+        fclose($pipes[0]);
+        $output   = stream_get_contents($pipes[1]);
+        fclose($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+
+        if ($output === '') {
+            return ['success' => false, 'data' => null,
+                    'message' => 'El helper de readlog no devolvió datos (exit=' . $exitCode . ').'
+                               . ($stderr !== '' ? ' stderr: ' . trim($stderr) : '')];
+        }
+
+        $data = json_decode($output, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'data' => null,
+                    'message' => 'Respuesta JSON inválida del helper de readlog.'];
+        }
+
+        if (isset($data['error'])) {
+            return ['success' => false, 'data' => $data,
+                    'message' => $data['error']];
+        }
+
+        return ['success' => true, 'data' => $data, 'message' => ''];
+    }
 }
