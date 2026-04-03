@@ -33,6 +33,7 @@ class McpServer
             'plesk_scan_malware'   => ['class' => 'LogTools',      'method' => 'scanMalware'],
             'plesk_read_file'      => ['class' => 'FileTools',     'method' => 'readFile'],
             'plesk_list_dir'       => ['class' => 'FileTools',     'method' => 'listDir'],
+            'plesk_read_log'       => ['class' => 'LogTools',      'method' => 'readLog'],
             'plesk_wpcli'          => ['class' => 'WpCliTools',    'method' => 'executeWpCli'],
         ];
     }
@@ -265,6 +266,19 @@ class McpServer
                     'properties' => [
                         'path'    => ['type' => 'string', 'description' => 'Ruta absoluta del directorio a listar'],
                         'pattern' => ['type' => 'string', 'description' => 'Filtro glob, ej. *.log (default: *)'],
+                    ],
+                    'required' => ['path'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_read_log',
+                'description' => 'Lee un archivo de log del servidor y devuelve las líneas como array. Permite filtrar por patrón grep. Solo lectura, rutas permitidas: /var/log/, /usr/local/psa/var/log/',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'path'    => ['type' => 'string',  'description' => 'Ruta absoluta al archivo de log (ej: /var/log/mail.log)'],
+                        'pattern' => ['type' => 'string',  'description' => 'Patrón grep para filtrar líneas (opcional)'],
+                        'lines'   => ['type' => 'integer', 'description' => 'Número máximo de líneas a devolver (default 100, max 5000)'],
                     ],
                     'required' => ['path'],
                 ],

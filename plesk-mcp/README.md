@@ -21,6 +21,7 @@ Conector MCP (Model Context Protocol) para servidores Plesk. Expone las funciona
 | `plesk_execute_cli` | Ejecuta comandos Plesk CLI (whitelist) |
 | `plesk_scan_maillog` | Analiza maillog buscando spam y patrones sospechosos |
 | `plesk_scan_malware` | Escanea archivos PHP buscando malware y webshells |
+| `plesk_read_log` | Lee logs del servidor con filtro grep, devuelve líneas como array |
 | `plesk_read_file` | Lee archivos del servidor (rutas permitidas) |
 | `plesk_list_dir` | Lista directorios del servidor (rutas permitidas) |
 | `plesk_wpcli` | Ejecuta comandos WP-CLI de solo lectura en dominios WordPress |
@@ -46,6 +47,7 @@ plesk-mcp/
 │   ├── mail_queue_helper.php      Helper sudo: cola de correo y stats
 │   ├── maillog_helper.php         Helper sudo: analisis de maillog
 │   ├── malware_helper.php         Helper sudo: escaneo de malware
+│   ├── readlog_helper.php         Helper sudo: lectura de logs con grep
 │   └── wpcli_helper.php           Helper sudo: ejecucion de WP-CLI
 └── src/
     ├── Auth.php                   Autenticacion por Bearer token
@@ -123,6 +125,7 @@ tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/mail
 tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/malware_helper.php *
 tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/file_helper.php *
 tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/listdir_helper.php *
+tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/readlog_helper.php *
 tu_usuario_sistema ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php RUTA/bin/wpcli_helper.php *
 ```
 
@@ -139,6 +142,7 @@ soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts
 soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts/websoluciones.es/plesk.websoluciones.es/plesk-mcp/bin/malware_helper.php *
 soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts/websoluciones.es/plesk.websoluciones.es/plesk-mcp/bin/file_helper.php *
 soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts/websoluciones.es/plesk.websoluciones.es/plesk-mcp/bin/listdir_helper.php *
+soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts/websoluciones.es/plesk.websoluciones.es/plesk-mcp/bin/readlog_helper.php *
 soportewebandweb ALL=(root) NOPASSWD: /opt/plesk/php/8.2/bin/php /var/www/vhosts/websoluciones.es/plesk.websoluciones.es/plesk-mcp/bin/wpcli_helper.php *
 ```
 
@@ -185,7 +189,7 @@ curl https://plesk.tudominio.com/
 Deberia devolver:
 
 ```json
-{"name":"Plesk MCP Connector","version":"1.0.0","tools":18,"status":"ok"}
+{"name":"Plesk MCP Connector","version":"1.0.0","tools":19,"status":"ok"}
 ```
 
 ### 10. Conectar desde un cliente MCP
