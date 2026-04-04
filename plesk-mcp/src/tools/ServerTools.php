@@ -92,7 +92,7 @@ class ServerTools
     {
         $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
         if ($helperPath === false) {
-            $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
+            $helperPath = dirname(__DIR__, 2) . '/bin/mail_queue_helper.php';
         }
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '

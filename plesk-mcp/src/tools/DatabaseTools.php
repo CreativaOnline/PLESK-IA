@@ -67,19 +67,27 @@ class DatabaseTools
             }
         }
 
-        $cliOutput   = [];
-        $cliExitCode = 0;
-        exec('plesk bin db --list-servers 2>/dev/null', $cliOutput, $cliExitCode);
+        $phpBin = '/opt/plesk/php/8.2/bin/php';
+        $script = '$o=[]; exec("plesk bin db --list-servers 2>/dev/null", $o, $c);'
+                . '$s=[]; foreach($o as $l){$l=trim($l); if($l!=="") $s[]=["server"=>$l];}'
+                . 'echo json_encode(["exit"=>$c,"servers"=>$s]);';
+        $cliCmd = 'sudo ' . escapeshellarg($phpBin) . ' -r ' . escapeshellarg($script);
 
-        if ($cliExitCode === 0 && !empty($cliOutput)) {
-            $servers = [];
-            foreach ($cliOutput as $line) {
-                $line = trim($line);
-                if ($line !== '') {
-                    $servers[] = ['server' => $line];
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cliCmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            $cliOutput  = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $cliExit = proc_close($process);
+
+            if ($cliExit === 0 && $cliOutput !== '') {
+                $parsed = json_decode($cliOutput, true);
+                if (is_array($parsed) && !empty($parsed['servers'])) {
+                    return ['success' => true, 'data' => $parsed['servers'], 'message' => ''];
                 }
             }
-            return ['success' => true, 'data' => $servers, 'message' => ''];
         }
 
         return [

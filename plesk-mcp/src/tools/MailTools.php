@@ -142,23 +142,33 @@ class MailTools
         }
 
         $safeDomain = basename($domain);
-        $output   = [];
-        $exitCode = 0;
-        exec('plesk bin mail --list -domain=' . escapeshellarg($safeDomain) . ' 2>/dev/null', $output, $exitCode);
 
-        if ($exitCode === 0 && !empty($output)) {
-            $mailboxes = [];
-            foreach ($output as $line) {
-                $line = trim($line);
-                if ($line !== '' && strpos($line, '@') !== false) {
-                    $mailboxes[] = ['email' => $line];
+        $phpBin = '/opt/plesk/php/8.2/bin/php';
+        $script = '$o=[]; exec("plesk bin mail --list -domain=" . escapeshellarg($argv[1]) . " 2>/dev/null", $o, $c);'
+                . '$m=[]; foreach($o as $l){$l=trim($l); if($l!=="" && strpos($l,"@")!==false) $m[]=["email"=>$l];}'
+                . 'echo json_encode(["exit"=>$c,"mailboxes"=>$m]);';
+        $cmd = 'sudo ' . escapeshellarg($phpBin) . ' -r ' . escapeshellarg($script)
+             . ' -- ' . escapeshellarg($safeDomain);
+
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            $output   = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exitCode = proc_close($process);
+
+            if ($exitCode === 0 && $output !== '') {
+                $parsed = json_decode($output, true);
+                if (is_array($parsed) && isset($parsed['mailboxes'])) {
+                    return [
+                        'success' => true,
+                        'data'    => ['source' => 'cli_sudo', 'domain' => $safeDomain, 'mailboxes' => $parsed['mailboxes']],
+                        'message' => '',
+                    ];
                 }
             }
-            return [
-                'success' => true,
-                'data'    => ['source' => 'cli', 'domain' => $safeDomain, 'mailboxes' => $mailboxes],
-                'message' => '',
-            ];
         }
 
         return ['success' => false, 'data' => null,
@@ -293,7 +303,7 @@ class MailTools
     {
         $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
         if ($helperPath === false) {
-            $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
+            $helperPath = dirname(__DIR__, 2) . '/bin/mail_queue_helper.php';
         }
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
