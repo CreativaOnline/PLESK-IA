@@ -67,11 +67,25 @@ class DatabaseTools
             }
         }
 
+        $cliOutput   = [];
+        $cliExitCode = 0;
+        exec('plesk bin db --list-servers 2>/dev/null', $cliOutput, $cliExitCode);
+
+        if ($cliExitCode === 0 && !empty($cliOutput)) {
+            $servers = [];
+            foreach ($cliOutput as $line) {
+                $line = trim($line);
+                if ($line !== '') {
+                    $servers[] = ['server' => $line];
+                }
+            }
+            return ['success' => true, 'data' => $servers, 'message' => ''];
+        }
+
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'El endpoint db-servers no está disponible via API REST ni XML-RPC. '
-                . 'Verifica que la API REST esté habilitada en Plesk > Tools & Settings > API REST. '
+            'message' => 'El endpoint db-servers no está disponible via API REST, XML-RPC ni CLI. '
                 . 'Error REST: ' . $result['error'],
         ];
     }

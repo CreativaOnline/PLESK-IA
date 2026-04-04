@@ -142,15 +142,16 @@ class MailTools
         }
 
         $safeDomain = basename($domain);
-        $cliResult = $client->cli(['mail', '-l', '-domain', $safeDomain]);
-        if ($cliResult['ok'] && !empty($cliResult['data'])) {
-            $lines = is_string($cliResult['data'])
-                ? array_filter(array_map('trim', explode("\n", $cliResult['data'])))
-                : [];
+        $output   = [];
+        $exitCode = 0;
+        exec('plesk bin mail --list -domain=' . escapeshellarg($safeDomain) . ' 2>/dev/null', $output, $exitCode);
+
+        if ($exitCode === 0 && !empty($output)) {
             $mailboxes = [];
-            foreach ($lines as $line) {
-                if (strpos($line, '@') !== false || strpos($line, $safeDomain) !== false) {
-                    $mailboxes[] = ['name' => $line];
+            foreach ($output as $line) {
+                $line = trim($line);
+                if ($line !== '' && strpos($line, '@') !== false) {
+                    $mailboxes[] = ['email' => $line];
                 }
             }
             return [
@@ -160,40 +161,8 @@ class MailTools
             ];
         }
 
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
-             . '<packet>'
-             . '<mail><get_info>'
-             . '<filter><site-name>' . htmlspecialchars($safeDomain, ENT_XML1) . '</site-name></filter>'
-             . '<mailname/>'
-             . '</get_info></mail>'
-             . '</packet>';
-
-        $xmlResult = $client->postXml('/enterprise/control/agent.php', $xml);
-        if ($xmlResult['ok'] && !empty($xmlResult['data'])) {
-            $prev = libxml_use_internal_errors(true);
-            $doc = simplexml_load_string($xmlResult['data']);
-            libxml_use_internal_errors($prev);
-            if ($doc !== false) {
-                $mailboxes = [];
-                $resultNodes = $doc->xpath('//mailname') ?: [];
-                foreach ($resultNodes as $node) {
-                    $name = (string)($node->name ?? $node);
-                    if ($name !== '') {
-                        $mailboxes[] = ['name' => $name . '@' . $safeDomain];
-                    }
-                }
-                if (!empty($mailboxes)) {
-                    return [
-                        'success' => true,
-                        'data'    => ['source' => 'xml_api', 'domain' => $safeDomain, 'mailboxes' => $mailboxes],
-                        'message' => '',
-                    ];
-                }
-            }
-        }
-
         return ['success' => false, 'data' => null,
-                'message' => 'No se pudo listar buzones de ' . $safeDomain . '. API REST, CLI y XML-RPC no disponibles.'];
+                'message' => 'No se pudo listar buzones de ' . $safeDomain . '. API REST y CLI no disponibles.'];
     }
 
     public static function mailDomainInfo(PleskClient $client, array $args): array
