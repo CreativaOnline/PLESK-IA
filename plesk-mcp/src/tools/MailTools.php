@@ -143,12 +143,16 @@ class MailTools
 
         $safeDomain = basename($domain);
 
+        $helperPath = realpath(__DIR__ . '/../../bin/mailboxes_helper.php');
+        if ($helperPath === false) {
+            $helperPath = dirname(__DIR__, 2) . '/bin/mailboxes_helper.php';
+        }
         $phpBin = '/opt/plesk/php/8.2/bin/php';
-        $script = '$o=[]; exec("plesk bin mail --list -domain=" . escapeshellarg($argv[1]) . " 2>/dev/null", $o, $c);'
-                . '$m=[]; foreach($o as $l){$l=trim($l); if($l!=="" && strpos($l,"@")!==false) $m[]=["email"=>$l];}'
-                . 'echo json_encode(["exit"=>$c,"mailboxes"=>$m]);';
-        $cmd = 'sudo ' . escapeshellarg($phpBin) . ' -r ' . escapeshellarg($script)
-             . ' -- ' . escapeshellarg($safeDomain);
+        $cmd = 'sudo ' . escapeshellarg($phpBin) . ' '
+             . escapeshellarg($helperPath) . ' '
+             . escapeshellarg($safeDomain);
+
+        error_log('[plesk-mcp] MailTools::listMailboxes CMD: ' . $cmd);
 
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $process = @proc_open($cmd, $descriptors, $pipes);
@@ -156,8 +160,11 @@ class MailTools
             fclose($pipes[0]);
             $output   = stream_get_contents($pipes[1]);
             fclose($pipes[1]);
+            $stderr   = stream_get_contents($pipes[2]);
             fclose($pipes[2]);
             $exitCode = proc_close($process);
+
+            error_log('[plesk-mcp] MailTools::listMailboxes exit=' . $exitCode . ' stdout_len=' . strlen($output) . ' stderr=' . $stderr);
 
             if ($exitCode === 0 && $output !== '') {
                 $parsed = json_decode($output, true);
@@ -308,14 +315,20 @@ class MailTools
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
                     . escapeshellarg($helperPath);
+        error_log('[plesk-mcp] MailTools::runHelper CMD: ' . $cmd);
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $process = @proc_open($cmd, $descriptors, $pipes);
-        if (!is_resource($process)) return null;
+        if (!is_resource($process)) {
+            error_log('[plesk-mcp] MailTools::runHelper proc_open FAILED');
+            return null;
+        }
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);
         fclose($pipes[2]);
         $exitCode = proc_close($process);
+        error_log('[plesk-mcp] MailTools::runHelper exit=' . $exitCode . ' stdout_len=' . strlen($output) . ' stderr=' . $stderr);
         if ($exitCode !== 0 || $output === '') return null;
         $data = json_decode($output, true);
         return is_array($data) ? $data : null;
