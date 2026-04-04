@@ -23,6 +23,16 @@ foreach ($spoolDirs as $queue => $dir) {
     $result['mail']['queues'][$queue] = $count;
     $result['mail']['total'] += $count;
 }
+if ($result['mail']['total'] === 0) {
+    $mqCmd = 'plesk bin mail --get-queue 2>/dev/null';
+    exec($mqCmd, $mqOut);
+    if (!empty($mqOut)) {
+        $result['mail']['mailq_output'] = implode("\n", $mqOut);
+        $result['mail']['total'] = count(array_filter($mqOut,
+            fn($l) => preg_match('/^\w{10,}$/', trim($l))
+        ));
+    }
+}
 foreach (['/usr/sbin/mailq', '/usr/bin/mailq'] as $path) {
     if (is_executable($path)) {
         exec($path . ' 2>/dev/null', $output);

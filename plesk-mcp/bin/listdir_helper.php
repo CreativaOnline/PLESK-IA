@@ -23,7 +23,7 @@ if ($realPath === false || !is_dir($realPath)) {
 
 $allowed = false;
 foreach ($allowedPrefixes as $prefix) {
-    if (strpos($realPath, $prefix) === 0) {
+    if (strpos($realPath . '/', $prefix) === 0) {
         $allowed = true;
         break;
     }
