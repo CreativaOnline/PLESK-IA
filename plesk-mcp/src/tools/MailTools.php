@@ -18,6 +18,20 @@ class MailTools
             ];
         }
 
+        $data = self::runHelper();
+        if ($data !== null && isset($data['mail'])) {
+            return [
+                'success' => true,
+                'data'    => [
+                    'source'       => 'helper',
+                    'total'        => $data['mail']['total']        ?? 0,
+                    'queues'       => $data['mail']['queues']       ?? [],
+                    'mailq_output' => $data['mail']['mailq_output'] ?? '',
+                ],
+                'message' => '',
+            ];
+        }
+
         $xmlResult = self::getQueueViaXmlApi($client);
         if ($xmlResult !== null) {
             return $xmlResult;
@@ -108,24 +122,10 @@ class MailTools
             ];
         }
 
-        $data = self::runHelper();
-        if ($data !== null && isset($data['mail'])) {
-            return [
-                'success' => true,
-                'data'    => [
-                    'source'       => 'helper',
-                    'total'        => $data['mail']['total']        ?? 0,
-                    'queues'       => $data['mail']['queues']       ?? [],
-                    'mailq_output' => $data['mail']['mailq_output'] ?? '',
-                ],
-                'message' => '',
-            ];
-        }
-
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'No se pudo obtener la cola de correo. API REST, XML-RPC, spool de postfix, mailq/postqueue y script auxiliar no disponibles.',
+            'message' => 'No se pudo obtener la cola de correo. API REST, helper sudo, XML-RPC, spool de postfix y mailq/postqueue no disponibles.',
         ];
     }
 
@@ -135,6 +135,7 @@ class MailTools
         if ($domain === '') {
             return ['success' => false, 'data' => null, 'message' => 'El parámetro "domain" es requerido.'];
         }
+
         $result = $client->get('/api/v2/mail-domains/' . urlencode($domain) . '/mail-users');
         if ($result['ok']) {
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
@@ -180,6 +181,7 @@ class MailTools
         if ($domain === '') {
             return ['success' => false, 'data' => null, 'message' => 'El parámetro "domain" es requerido.'];
         }
+
         $result = $client->get('/api/v2/mail-domains/' . urlencode($domain));
         if ($result['ok']) {
             return ['success' => true, 'data' => $result['data'], 'message' => ''];
@@ -256,7 +258,6 @@ class MailTools
             ];
         }
 
-        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $postsuper  = '/usr/sbin/postsuper';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' -r '

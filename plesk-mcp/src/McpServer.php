@@ -34,6 +34,9 @@ class McpServer
             'plesk_read_file'      => ['class' => 'FileTools',     'method' => 'readFile'],
             'plesk_list_dir'       => ['class' => 'FileTools',     'method' => 'listDir'],
             'plesk_read_log'       => ['class' => 'LogTools',      'method' => 'readLog'],
+            'plesk_audit_scan'     => ['class' => 'AuditTools',    'method' => 'auditScan'],
+            'plesk_domain_dns'     => ['class' => 'DnsTools',     'method' => 'domainDns'],
+            'plesk_write_file'     => ['class' => 'WriteTools',    'method' => 'writeFile'],
             'plesk_wpcli'          => ['class' => 'WpCliTools',    'method' => 'executeWpCli'],
         ];
     }
@@ -281,6 +284,44 @@ class McpServer
                         'lines'   => ['type' => 'integer', 'description' => 'Número máximo de líneas a devolver (default 100, max 5000)'],
                     ],
                     'required' => ['path'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_audit_scan',
+                'description' => 'Auditoría de seguridad del servidor con 3 modos: grep_file (buscar patrones en archivos de log/config), scan_sql (detectar queries SQL sospechosas), file_stats (info detallada de archivo/directorio)',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'mode'      => ['type' => 'string',  'description' => 'Modo: grep_file, scan_sql o file_stats'],
+                        'path'      => ['type' => 'string',  'description' => 'Ruta del archivo o directorio (rutas permitidas: /var/log/, /var/www/vhosts/, /usr/local/psa/var/log/, /etc/postfix/)'],
+                        'pattern'   => ['type' => 'string',  'description' => 'Patrón de búsqueda (solo para grep_file)'],
+                        'max_lines' => ['type' => 'integer', 'description' => 'Máximo de resultados (default: 200 grep_file, 500 scan_sql)'],
+                    ],
+                    'required' => ['mode'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_domain_dns',
+                'description' => 'Resuelve los registros DNS de un dominio (A, AAAA, MX, NS, TXT, CNAME, SOA) y verifica configuración de email (SPF, DKIM, DMARC)',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'domain' => ['type' => 'string', 'description' => 'Nombre del dominio a consultar'],
+                    ],
+                    'required' => ['domain'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_write_file',
+                'description' => 'ACCIÓN DE ESCRITURA — Escribe contenido en un archivo del servidor con backup automático. Requiere confirm:true. Rutas permitidas: /var/www/vhosts/, /var/log/, /usr/local/psa/var/log/, /etc/postfix/',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'path'    => ['type' => 'string',  'description' => 'Ruta absoluta del archivo a escribir'],
+                        'content' => ['type' => 'string',  'description' => 'Contenido a escribir en el archivo'],
+                        'confirm' => ['type' => 'boolean', 'description' => 'Debe ser true para ejecutar la escritura'],
+                    ],
+                    'required' => ['path', 'content', 'confirm'],
                 ],
             ],
             [

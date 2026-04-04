@@ -95,11 +95,61 @@ $allowedPrefixes = [
     'language theme list',
     'site list',
     'search-replace --dry-run',
+    // Evaluación
     'eval-file',
+    'eval',
     'transient list',
     'transient get',
     'media list',
     'maintenance-mode status',
+    // Plugins (escritura)
+    'plugin install',
+    'plugin activate',
+    'plugin deactivate',
+    'plugin delete',
+    'plugin update',
+    // Temas (escritura)
+    'theme install',
+    'theme activate',
+    'theme delete',
+    'theme update',
+    // Core (actualización)
+    'core update',
+    'core update-db',
+    // Usuarios (escritura)
+    'user create',
+    'user update',
+    'user delete',
+    'user set-role',
+    // Opciones (escritura)
+    'option update',
+    'option add',
+    'option delete',
+    // Base de datos
+    'db optimize',
+    'db repair',
+    'db export',
+    'db import',
+    // Search-replace real
+    'search-replace',
+    // Cache
+    'cache flush',
+    // Transients
+    'transient delete',
+    // Mantenimiento
+    'maintenance-mode activate',
+    'maintenance-mode deactivate',
+    // Cron
+    'cron event run',
+    'cron event delete',
+    // Media
+    'media regenerate',
+    // Rewrite
+    'rewrite flush',
+    // Idiomas
+    'language core install',
+    'language plugin install',
+    'language theme install',
 ];
 
 $commandAllowed = false;
