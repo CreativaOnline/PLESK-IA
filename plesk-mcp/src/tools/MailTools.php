@@ -18,6 +18,20 @@ class MailTools
             ];
         }
 
+        $data = self::runHelper();
+        if ($data !== null && isset($data['mail'])) {
+            return [
+                'success' => true,
+                'data'    => [
+                    'source'       => 'helper',
+                    'total'        => $data['mail']['total']        ?? 0,
+                    'queues'       => $data['mail']['queues']       ?? [],
+                    'mailq_output' => $data['mail']['mailq_output'] ?? '',
+                ],
+                'message' => '',
+            ];
+        }
+
         $xmlResult = self::getQueueViaXmlApi($client);
         if ($xmlResult !== null) {
             return $xmlResult;
@@ -108,24 +122,10 @@ class MailTools
             ];
         }
 
-        $data = self::runHelper();
-        if ($data !== null && isset($data['mail'])) {
-            return [
-                'success' => true,
-                'data'    => [
-                    'source'       => 'helper',
-                    'total'        => $data['mail']['total']        ?? 0,
-                    'queues'       => $data['mail']['queues']       ?? [],
-                    'mailq_output' => $data['mail']['mailq_output'] ?? '',
-                ],
-                'message' => '',
-            ];
-        }
-
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'No se pudo obtener la cola de correo. API REST, XML-RPC, spool de postfix, mailq/postqueue y script auxiliar no disponibles.',
+            'message' => 'No se pudo obtener la cola de correo. API REST, helper sudo, XML-RPC, spool de postfix y mailq/postqueue no disponibles.',
         ];
     }
 
@@ -135,11 +135,65 @@ class MailTools
         if ($domain === '') {
             return ['success' => false, 'data' => null, 'message' => 'El parámetro "domain" es requerido.'];
         }
+
         $result = $client->get('/api/v2/mail-domains/' . urlencode($domain) . '/mail-users');
-        if (!$result['ok']) {
-            return ['success' => false, 'data' => null, 'message' => $result['error']];
+        if ($result['ok']) {
+            return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
-        return ['success' => true, 'data' => $result['data'], 'message' => ''];
+
+        $safeDomain = basename($domain);
+        $cliResult = $client->cli(['mail', '-l', '-domain', $safeDomain]);
+        if ($cliResult['ok'] && !empty($cliResult['data'])) {
+            $lines = is_string($cliResult['data'])
+                ? array_filter(array_map('trim', explode("\n", $cliResult['data'])))
+                : [];
+            $mailboxes = [];
+            foreach ($lines as $line) {
+                if (strpos($line, '@') !== false || strpos($line, $safeDomain) !== false) {
+                    $mailboxes[] = ['name' => $line];
+                }
+            }
+            return [
+                'success' => true,
+                'data'    => ['source' => 'cli', 'domain' => $safeDomain, 'mailboxes' => $mailboxes],
+                'message' => '',
+            ];
+        }
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'
+             . '<packet>'
+             . '<mail><get_info>'
+             . '<filter><site-name>' . htmlspecialchars($safeDomain, ENT_XML1) . '</site-name></filter>'
+             . '<mailname/>'
+             . '</get_info></mail>'
+             . '</packet>';
+
+        $xmlResult = $client->postXml('/enterprise/control/agent.php', $xml);
+        if ($xmlResult['ok'] && !empty($xmlResult['data'])) {
+            $prev = libxml_use_internal_errors(true);
+            $doc = simplexml_load_string($xmlResult['data']);
+            libxml_use_internal_errors($prev);
+            if ($doc !== false) {
+                $mailboxes = [];
+                $resultNodes = $doc->xpath('//mailname') ?: [];
+                foreach ($resultNodes as $node) {
+                    $name = (string)($node->name ?? $node);
+                    if ($name !== '') {
+                        $mailboxes[] = ['name' => $name . '@' . $safeDomain];
+                    }
+                }
+                if (!empty($mailboxes)) {
+                    return [
+                        'success' => true,
+                        'data'    => ['source' => 'xml_api', 'domain' => $safeDomain, 'mailboxes' => $mailboxes],
+                        'message' => '',
+                    ];
+                }
+            }
+        }
+
+        return ['success' => false, 'data' => null,
+                'message' => 'No se pudo listar buzones de ' . $safeDomain . '. API REST, CLI y XML-RPC no disponibles.'];
     }
 
     public static function mailDomainInfo(PleskClient $client, array $args): array
@@ -148,11 +202,56 @@ class MailTools
         if ($domain === '') {
             return ['success' => false, 'data' => null, 'message' => 'El parámetro "domain" es requerido.'];
         }
+
         $result = $client->get('/api/v2/mail-domains/' . urlencode($domain));
-        if (!$result['ok']) {
-            return ['success' => false, 'data' => null, 'message' => $result['error']];
+        if ($result['ok']) {
+            return ['success' => true, 'data' => $result['data'], 'message' => ''];
         }
-        return ['success' => true, 'data' => $result['data'], 'message' => ''];
+
+        $safeDomain = basename($domain);
+        $cliResult = $client->cli(['domain', '--info', $safeDomain]);
+        if ($cliResult['ok'] && !empty($cliResult['data'])) {
+            $info = ['source' => 'cli', 'domain' => $safeDomain, 'raw' => $cliResult['data']];
+            $lines = is_string($cliResult['data'])
+                ? array_map('trim', explode("\n", $cliResult['data']))
+                : [];
+            foreach ($lines as $line) {
+                if (preg_match('/^(.+?):\s+(.+)$/', $line, $m)) {
+                    $key = strtolower(str_replace(' ', '_', trim($m[1])));
+                    $info[$key] = trim($m[2]);
+                }
+            }
+            return ['success' => true, 'data' => $info, 'message' => ''];
+        }
+
+        $dnsInfo = ['source' => 'dns', 'domain' => $safeDomain];
+        $mx = @dns_get_record($safeDomain, DNS_MX);
+        if (is_array($mx)) {
+            $dnsInfo['mx'] = array_map(function ($r) {
+                return ['priority' => $r['pri'] ?? 0, 'target' => $r['target'] ?? ''];
+            }, $mx);
+        }
+        $txt = @dns_get_record($safeDomain, DNS_TXT);
+        if (is_array($txt)) {
+            foreach ($txt as $r) {
+                $t = $r['txt'] ?? '';
+                if (stripos($t, 'v=spf1') === 0)  $dnsInfo['spf'] = $t;
+            }
+        }
+        $dmarc = @dns_get_record('_dmarc.' . $safeDomain, DNS_TXT);
+        if (is_array($dmarc)) {
+            foreach ($dmarc as $r) {
+                $t = $r['txt'] ?? '';
+                if (stripos($t, 'v=dmarc1') === 0)  $dnsInfo['dmarc'] = $t;
+            }
+        }
+
+        if (isset($dnsInfo['mx']) || isset($dnsInfo['spf'])) {
+            return ['success' => true, 'data' => $dnsInfo, 'message' => ''];
+        }
+
+        return ['success' => false, 'data' => null,
+                'message' => 'No se pudo obtener info de correo de ' . $safeDomain . '. API REST, CLI y DNS no disponibles.'];
     }
 
     public static function clearMailQueue(PleskClient $client, array $args): array
@@ -180,7 +279,6 @@ class MailTools
             ];
         }
 
-        $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $postsuper  = '/usr/sbin/postsuper';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' -r '
@@ -225,6 +323,9 @@ class MailTools
     private static function runHelper(): ?array
     {
         $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        if ($helperPath === false) {
+            $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
+        }
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
                     . escapeshellarg($helperPath);

@@ -95,6 +95,9 @@ class LogTools
 
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $helperPath = realpath(__DIR__ . '/../../bin/readlog_helper.php');
+        if ($helperPath === false) {
+            $helperPath = __DIR__ . '/../../bin/readlog_helper.php';
+        }
         $pathArg    = escapeshellarg($path);
         $patternArg = escapeshellarg($pattern);
         $linesArg   = escapeshellarg((string)$lines);
@@ -117,7 +120,7 @@ class LogTools
         fclose($pipes[2]);
         $exitCode = proc_close($process);
 
-        if ($output === '') {
+        if ($exitCode !== 0 || $output === '') {
             return ['success' => false, 'data' => null,
                     'message' => 'El helper de readlog no devolvió datos (exit=' . $exitCode . ').'
                                . ($stderr !== '' ? ' stderr: ' . trim($stderr) : '')];

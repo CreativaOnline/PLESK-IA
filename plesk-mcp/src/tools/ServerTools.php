@@ -19,7 +19,7 @@ class ServerTools
         }
 
         $data = self::runHelper();
-        if ($data !== null && !empty($data['system']['cpu_load'])) {
+        if ($data !== null && isset($data['system'])) {
             return [
                 'success' => true,
                 'data'    => [
@@ -91,6 +91,9 @@ class ServerTools
     private static function runHelper(): ?array
     {
         $helperPath = realpath(__DIR__ . '/../../bin/mail_queue_helper.php');
+        if ($helperPath === false) {
+            $helperPath = __DIR__ . '/../../bin/mail_queue_helper.php';
+        }
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
                     . escapeshellarg($helperPath);
