@@ -21,6 +21,9 @@ class FileTools
 
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $helperPath = realpath(__DIR__ . '/../../bin/file_helper.php');
+        if ($helperPath === false) {
+            $helperPath = __DIR__ . '/../../bin/file_helper.php';
+        }
         $pathArg    = escapeshellarg($path);
         $bytesArg   = escapeshellarg((string)$maxBytes);
 
@@ -74,6 +77,9 @@ class FileTools
 
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $helperPath = realpath(__DIR__ . '/../../bin/listdir_helper.php');
+        if ($helperPath === false) {
+            $helperPath = __DIR__ . '/../../bin/listdir_helper.php';
+        }
         $pathArg    = escapeshellarg($path);
         $patternArg = escapeshellarg($pattern);
 
