@@ -67,11 +67,33 @@ class DatabaseTools
             }
         }
 
+        $phpBin = '/opt/plesk/php/8.2/bin/php';
+        $script = '$o=[]; exec("plesk bin db --list-servers 2>/dev/null", $o, $c);'
+                . '$s=[]; foreach($o as $l){$l=trim($l); if($l!=="") $s[]=["server"=>$l];}'
+                . 'echo json_encode(["exit"=>$c,"servers"=>$s]);';
+        $cliCmd = 'sudo ' . escapeshellarg($phpBin) . ' -r ' . escapeshellarg($script);
+
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($cliCmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            $cliOutput  = stream_get_contents($pipes[1]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $cliExit = proc_close($process);
+
+            if ($cliExit === 0 && $cliOutput !== '') {
+                $parsed = json_decode($cliOutput, true);
+                if (is_array($parsed) && !empty($parsed['servers'])) {
+                    return ['success' => true, 'data' => $parsed['servers'], 'message' => ''];
+                }
+            }
+        }
+
         return [
             'success' => false,
             'data'    => null,
-            'message' => 'El endpoint db-servers no está disponible via API REST ni XML-RPC. '
-                . 'Verifica que la API REST esté habilitada en Plesk > Tools & Settings > API REST. '
+            'message' => 'El endpoint db-servers no está disponible via API REST, XML-RPC ni CLI. '
                 . 'Error REST: ' . $result['error'],
         ];
     }
