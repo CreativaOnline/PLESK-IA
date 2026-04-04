@@ -97,14 +97,20 @@ class ServerTools
         $phpBin     = '/opt/plesk/php/8.2/bin/php';
         $cmd        = 'sudo ' . escapeshellarg($phpBin) . ' '
                     . escapeshellarg($helperPath);
+        error_log('[plesk-mcp] ServerTools::runHelper CMD: ' . $cmd);
         $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
         $process = @proc_open($cmd, $descriptors, $pipes);
-        if (!is_resource($process)) return null;
+        if (!is_resource($process)) {
+            error_log('[plesk-mcp] ServerTools::runHelper proc_open FAILED');
+            return null;
+        }
         fclose($pipes[0]);
         $output   = stream_get_contents($pipes[1]);
         fclose($pipes[1]);
+        $stderr   = stream_get_contents($pipes[2]);
         fclose($pipes[2]);
         $exitCode = proc_close($process);
+        error_log('[plesk-mcp] ServerTools::runHelper exit=' . $exitCode . ' stdout_len=' . strlen($output) . ' stderr=' . $stderr);
         if ($exitCode !== 0 || $output === '') return null;
         $data = json_decode($output, true);
         return is_array($data) ? $data : null;
