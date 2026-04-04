@@ -36,6 +36,7 @@ class McpServer
             'plesk_read_log'       => ['class' => 'LogTools',      'method' => 'readLog'],
             'plesk_audit_scan'     => ['class' => 'AuditTools',    'method' => 'auditScan'],
             'plesk_domain_dns'     => ['class' => 'DnsTools',     'method' => 'domainDns'],
+            'plesk_write_file'     => ['class' => 'WriteTools',    'method' => 'writeFile'],
             'plesk_wpcli'          => ['class' => 'WpCliTools',    'method' => 'executeWpCli'],
         ];
     }
@@ -308,6 +309,19 @@ class McpServer
                         'domain' => ['type' => 'string', 'description' => 'Nombre del dominio a consultar'],
                     ],
                     'required' => ['domain'],
+                ],
+            ],
+            [
+                'name'        => 'plesk_write_file',
+                'description' => 'ACCIÓN DE ESCRITURA — Escribe contenido en un archivo del servidor con backup automático. Requiere confirm:true. Rutas permitidas: /var/www/vhosts/, /var/log/, /usr/local/psa/var/log/, /etc/postfix/',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'path'    => ['type' => 'string',  'description' => 'Ruta absoluta del archivo a escribir'],
+                        'content' => ['type' => 'string',  'description' => 'Contenido a escribir en el archivo'],
+                        'confirm' => ['type' => 'boolean', 'description' => 'Debe ser true para ejecutar la escritura'],
+                    ],
+                    'required' => ['path', 'content', 'confirm'],
                 ],
             ],
             [

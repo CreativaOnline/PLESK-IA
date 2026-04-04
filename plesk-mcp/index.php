@@ -14,6 +14,7 @@ require_once __DIR__ . '/src/tools/LogTools.php';
 require_once __DIR__ . '/src/tools/FileTools.php';
 require_once __DIR__ . '/src/tools/AuditTools.php';
 require_once __DIR__ . '/src/tools/DnsTools.php';
+require_once __DIR__ . '/src/tools/WriteTools.php';
 require_once __DIR__ . '/src/tools/WpCliTools.php';
 
 header('Content-Type: application/json');
